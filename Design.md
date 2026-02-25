@@ -1,4 +1,4 @@
-# PlowDispatch Program Design
+# ApexPlow Program Design
 
 ## 1. Project Goal
 The goal of the **PlowDispatch** program is to provide a specialized, efficient, and user-friendly dispatch solution tailored for individual or small-scale plow operators. The system bridges the gap between service providers and customers during inclement weather, offering mobile-first accessibility and streamlined administrative control.
