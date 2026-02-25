@@ -91,27 +91,48 @@ export function StepServiceArea({ onComplete }: StepServiceAreaProps) {
     }
   }, [radius]);
 
-  // Pre-populate from existing data
+  // Pre-populate from existing data.
+  // The API returns the raw DB row whose fields are homeBaseAddress, centerLat,
+  // centerLng, radiusMiles (all strings from the numeric columns).
   useEffect(() => {
-    apiFetch<{ address: string; radiusMiles: number; lat: number; lng: number }>(
-      '/api/v1/admin/service-area',
-    )
+    apiFetch<{
+      homeBaseAddress: string;
+      centerLat: string;
+      centerLng: string;
+      radiusMiles: string;
+    }>('/api/v1/admin/service-area')
       .then((data) => {
-        setAddress(data.address);
-        setRadius(data.radiusMiles);
-        setLat(data.lat);
-        setLng(data.lng);
+        if (!data) return;
+        if (data.homeBaseAddress) setAddress(data.homeBaseAddress);
+        const parsedLat = parseFloat(data.centerLat);
+        const parsedLng = parseFloat(data.centerLng);
+        const parsedRadius = parseFloat(data.radiusMiles);
+        if (!isNaN(parsedLat)) setLat(parsedLat);
+        if (!isNaN(parsedLng)) setLng(parsedLng);
+        if (!isNaN(parsedRadius)) setRadius(parsedRadius);
       })
       .catch(() => {/* not yet configured */});
   }, []);
 
   const handleSave = async () => {
+    // Read the raw input value as fallback in case Autocomplete intercepted onChange
+    const inputEl = document.getElementById('service-area-address') as HTMLInputElement | null;
+    const effectiveAddress = address.trim() || inputEl?.value.trim() || '';
+    if (!effectiveAddress) {
+      setError('Please enter a home base address');
+      return;
+    }
+    // Guard against NaN coordinates (can occur if pre-populate mapped wrong field names
+    // before this fix, or if the user typed without selecting an Autocomplete suggestion).
+    const effectiveLat = isNaN(lat) ? 0 : lat;
+    const effectiveLng = isNaN(lng) ? 0 : lng;
+    const effectiveRadius = isNaN(radius) || radius < 1 ? 10 : radius;
     setSaving(true);
     setError(null);
     try {
       await apiFetch('/api/v1/admin/service-area', {
         method: 'PUT',
-        body: JSON.stringify({ address, lat, lng, radiusMiles: radius }),
+        body: JSON.stringify({ address: effectiveAddress, lat: effectiveLat, lng: effectiveLng, radiusMiles: effectiveRadius }),
       });
       onComplete();
     } catch (err) {

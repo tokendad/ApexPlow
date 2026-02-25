@@ -1,10 +1,29 @@
 import 'dotenv/config';
 import postgres from 'postgres';
+import * as argon2 from 'argon2';
 
 const DATABASE_URL = process.env['DATABASE_URL'] ?? 'postgresql://plowdispatch:plowdispatch@localhost:5432/plowdispatch';
 const sql = postgres(DATABASE_URL);
 
+const ADMIN_EMAIL = 'admin@plowdispatch.local';
+const ADMIN_PASSWORD = 'AdminPass123!';
+
 async function seed() {
+  console.log('Seeding admin user...');
+  const passwordHash = await argon2.hash(ADMIN_PASSWORD, { type: argon2.argon2id });
+  await sql`
+    INSERT INTO users (email, password_hash, role, full_name)
+    VALUES (${ADMIN_EMAIL}, ${passwordHash}, 'admin', 'Admin')
+    ON CONFLICT (email) DO NOTHING
+  `;
+
+  console.log('Seeding driver profile for admin...');
+  await sql`
+    INSERT INTO driver_profiles (user_id, status)
+    SELECT id, 'available' FROM users WHERE email = ${ADMIN_EMAIL}
+    ON CONFLICT DO NOTHING
+  `;
+
   console.log('Seeding pricing_config...');
   await sql`
     INSERT INTO pricing_config (tier_label, price_cents, sort_order, is_active)
